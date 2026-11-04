@@ -1,0 +1,55 @@
+name: "Mainfast Rollcall"
+description: "Audits required status checks (branch protection and rulesets) against what recent merged and open PRs actually reported — never-ran, skipped-as-success, renamed, path-filtered, merged while pending, drift — and keeps one tracking issue open while something is wrong."
+author: "Mainfast authors"
+branding:
+  icon: "check-square"
+  color: "blue"
+inputs:
+  token:
+    description: "Token for the audit. GITHUB_TOKEN works with permissions contents: read, pull-requests: read, statuses: read, checks: write, issues: write. Classic branch protection is read from \"Get a branch\" (read access); the admin-only protection endpoint is only a fallback, and its 403 becomes a note."
+    default: ${{ github.token }}
+  repository:
+    description: owner/name to audit. Defaults to the current repository.
+    default: ""
+  branch:
+    description: Protected branch to audit. Defaults to rollcall.branch, else the default branch.
+    default: ""
+  pulls:
+    description: How many recently merged PRs to sample (1..100). Defaults to rollcall.pulls (20).
+    default: ""
+  open-pulls:
+    description: How many open PRs to sample as well (0..100). Defaults to rollcall.openPulls (10).
+    default: ""
+  config:
+    description: "Path to a .mainfast.yml in the workspace. Default: .mainfast.yml read through the API from the default branch (no checkout needed)."
+    default: ""
+  check-run:
+    description: Post the result as a "Mainfast Rollcall" check run on the audited branch's head commit.
+    default: "true"
+  issue:
+    description: Keep one tracking issue open while the audit finds something at the issue-on level, and close it when clean.
+    default: "true"
+  issue-on:
+    description: "error, warning or never: lowest finding level that opens the tracking issue. Defaults to rollcall.issueOn (error)."
+    default: ""
+  comment-author:
+    description: "Login the token posts as (e.g. my-app[bot] for an app token). Only an issue that carries the marker AND was opened by this login is ever edited or closed. Default: GET /user, else github-actions[bot]."
+    default: ""
+  fail-on:
+    description: "error, warning or never: lowest finding level that fails the job and the check run. Defaults to rollcall.failOn (error)."
+    default: ""
+  license:
+    description: "Mainfast licence key (Pro, or the optional free key): pass your MAINFAST_LICENSE secret. Optional and never needed for public repositories or private ones with up to 5 active contributors; no feature needs it. Checked once per run with Polar (only the key and the organisation id are sent; offline counts as valid). Without a Pro key a larger private repository gets one notice in the job summary; the result is never affected."
+    default: ""
+outputs:
+  ok:
+    description: "true when no error-level finding"
+  conclusion:
+    description: "Check-run conclusion: failure, neutral (warnings only) or success"
+  issue:
+    description: Number of the tracking issue, when there is one
+  report:
+    description: Full audit report as JSON (required checks, per-check tallies, findings)
+runs:
+  using: node24
+  main: "dist/index.cjs"

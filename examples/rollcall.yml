@@ -1,0 +1,32 @@
+# Copy to .github/workflows/rollcall.yml.
+# No checkout step: Rollcall reads .mainfast.yml (default branch) and .github/workflows (audited
+# branch) through the API, so a manual run from any branch audits exactly what the schedule does.
+name: Required-check audit
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays: also catches ruleset changes, which trigger no workflow event
+  workflow_dispatch: # run it by hand after editing a ruleset
+  branch_protection_rule: # classic branch protection created / edited / deleted
+  push:
+    branches: [main]
+    paths: [".github/workflows/**", ".mainfast.yml"]
+
+permissions:
+  contents: read # .mainfast.yml, workflow files, "Get a branch" (classic required checks)
+  pull-requests: read # the merged and open PRs to sample
+  statuses: read # commit statuses on each sampled PR head
+  checks: write # read check runs, post the Rollcall check run
+  issues: write # the one tracking issue
+
+concurrency:
+  group: mainfast-rollcall
+  cancel-in-progress: true
+
+jobs:
+  rollcall:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mainfast/rollcall@v0
+        with:
+          # license: ${{ secrets.MAINFAST_LICENSE }} # Pro: private repos with more than 5 active contributors
+          pulls: 30

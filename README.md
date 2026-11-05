@@ -31,7 +31,7 @@ and carries its fix.
 |---|---|---|---|
 | `never-ran` | error | Required, but no sampled PR reported it (and no similar name exists). Says whether any workflow job produces the name. | Remove the stale requirement or restore the job; merges need a bypass until then. |
 | `renamed` | error | The required name stopped reporting (or never did) and a similar, non-required name took its place. | Put the new job name in the required list and drop the old one. |
-| `stopped-reporting` | error | Missing on the newest N sampled PRs in a row after reporting on older ones, no rename candidate. | Find the commit that removed or renamed the job; restore it or update the list. |
+| `stopped-reporting` | error | Missing on the newest N sampled PRs in a row after reporting on older ones, no rename candidate, and no path filter that explains it. | Find the commit that removed or renamed the job; restore it or update the list. |
 | `matrix-name-mismatch` | error | Required `test`, the job reports `test (…)`. | Require each leg by full name, or add an `if: always()` gate job with the required name. |
 | `skipped-as-success` | error | Concluded `skipped` on sampled PRs (merged or open), which GitHub counts as passing. | Make it a gate job with `if: always()` that fails unless its dependencies succeeded. |
 | `path-filtered` | error | The producing workflow has `paths` / `paths-ignore` on its PR trigger. | Drop the filter and skip inside the job, or require a gate job that always runs. |
@@ -45,7 +45,7 @@ and carries its fix.
 | `merged-without` | warning | Merged PRs with no result for the check (bypass, or required later). | Review who bypassed (ruleset insights / audit log) and trim the bypass list. |
 | `merged-with-failure` | warning | Merged while the check had failed. | Review the bypass; fix a flaky check instead of merging over it. |
 | `merged-while-pending` | warning | Merged while the check was still queued or running (or never finished: `stale`). | Wait for required checks; limit bypass, or use the merge queue. |
-| `protection-drift` | warning | Context, app pin or "up to date" policy differs between classic protection and rulesets. | Keep one source of truth (move everything into the ruleset). |
+| `protection-drift` | warning | Context, explicit app pins that disagree, or "up to date" policy differs between classic protection and rulesets. | Keep one source of truth (move everything into the ruleset). |
 | `ruleset-not-enforced` | warning | A ruleset with required checks is in `evaluate` or `disabled`. | Switch it to Active once its checks report reliably, or delete it. |
 | `ambiguous-name` | warning | Two workflows produce the same check name. | Give each job a unique name. |
 | `workflow-unparsable` | warning | A workflow file is not valid YAML. | Fix the YAML; GitHub does not run it either. |

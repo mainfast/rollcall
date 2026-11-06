@@ -7770,7 +7770,7 @@ async function fetchRequiredSources(gh, owner, repo, branch, opts = {}) {
   const rsc = info?.protection?.required_status_checks;
   if (info?.protected && rsc && (rsc.contexts?.length || rsc.checks?.length)) {
     classic = { strict: rsc.strict, enforcement_level: rsc.enforcement_level, contexts: rsc.contexts ?? [], checks: rsc.checks ?? [] };
-  } else if (info?.protected) {
+  } else if (info?.protected && info.protection?.enabled !== false) {
     classic = await soft(
       notes,
       `GET ${base}/branches/${branch}/protection/required_status_checks`,
@@ -8012,10 +8012,15 @@ function similarity(a, b) {
 var prList = (ns) => ns.map((n) => `#${n}`).join(", ");
 var ALWAYS = /\b(always|failure|cancelled)\s*\(\s*\)/;
 var isMerged = (p) => (p.state ?? "merged") === "merged";
+var runningAtMerge = (run2, mergedAt) => {
+  if (!run2?.startedAt || !run2.completedAt || !mergedAt) return false;
+  const merged = Date.parse(mergedAt);
+  return Date.parse(run2.startedAt) <= merged && merged < Date.parse(run2.completedAt);
+};
 function commitChecks(p) {
   return {
     sha: p.headSha,
-    runs: p.checkRuns.map((r) => ({ name: r.name, headSha: r.head_sha, status: r.status, conclusion: r.conclusion, startedAt: r.started_at, id: r.id, appId: r.app?.id ?? null, appSlug: r.app?.slug ?? null })),
+    runs: p.checkRuns.map((r) => ({ name: r.name, headSha: r.head_sha, status: r.status, conclusion: r.conclusion, startedAt: r.started_at, completedAt: r.completed_at, id: r.id, appId: r.app?.id ?? null, appSlug: r.app?.slug ?? null })),
     statuses: p.statuses.map((x) => ({ context: x.context, state: x.state, updatedAt: x.updated_at }))
   };
 }
@@ -8105,7 +8110,7 @@ function audit(s, opts = {}) {
     for (const { p, c } of obs) {
       const res = classifyRequired(r.context, c, r.sources);
       by[res.outcome].push(p.number);
-      if (isMerged(p)) mergedBy[res.outcome].push(p.number);
+      if (isMerged(p)) mergedBy[runningAtMerge(res.run, p.mergedAt) ? "pending" : res.outcome].push(p.number);
       if (res.outcome === "missing") missingAt.add(p.number);
       if (res.run && !res.appSatisfied) appMismatch.push({ pr: p.number, app: `${res.run.appSlug ?? "?"} (${res.run.appId ?? "?"})` });
     }

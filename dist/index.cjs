@@ -49,7 +49,7 @@ var require_identity = __commonJS({
     var isDocument = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === DOC;
     var isMap = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
     var isPair = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === PAIR;
-    var isScalar = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
+    var isScalar2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
     var isSeq = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
     function isCollection(node) {
       if (node && typeof node === "object")
@@ -71,7 +71,7 @@ var require_identity = __commonJS({
         }
       return false;
     }
-    var hasAnchor = (node) => (isScalar(node) || isCollection(node)) && !!node.anchor;
+    var hasAnchor = (node) => (isScalar2(node) || isCollection(node)) && !!node.anchor;
     exports2.ALIAS = ALIAS;
     exports2.DOC = DOC;
     exports2.MAP = MAP;
@@ -86,7 +86,7 @@ var require_identity = __commonJS({
     exports2.isMap = isMap;
     exports2.isNode = isNode;
     exports2.isPair = isPair;
-    exports2.isScalar = isScalar;
+    exports2.isScalar = isScalar2;
     exports2.isSeq = isSeq;
   }
 });
@@ -5631,7 +5631,7 @@ var require_cst = __commonJS({
     var FLOW_END = "";
     var SCALAR = "";
     var isCollection = (token) => !!token && "items" in token;
-    var isScalar = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
+    var isScalar2 = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
     function prettyToken(token) {
       switch (token) {
         case BOM:
@@ -5715,7 +5715,7 @@ var require_cst = __commonJS({
     exports2.FLOW_END = FLOW_END;
     exports2.SCALAR = SCALAR;
     exports2.isCollection = isCollection;
-    exports2.isScalar = isScalar;
+    exports2.isScalar = isScalar2;
     exports2.prettyToken = prettyToken;
     exports2.tokenType = tokenType;
   }
@@ -7387,7 +7387,7 @@ var brand_default = {
     homepageUrl: "https://github.com/mainfast/mainfast",
     docsUrl: "https://github.com/mainfast/mainfast#readme",
     issuesUrl: "https://github.com/mainfast/mainfast/issues",
-    pricingUrl: "https://github.com/mainfast/mainfast#free-and-pro",
+    pricingUrl: "https://mainfast.dev/pricing",
     npmScope: "@mainfast",
     configFile: ".mainfast.yml",
     configFileAlt: ".mainfast.yaml",
@@ -7398,17 +7398,16 @@ var brand_default = {
       freeActiveContributors: 5,
       windowDays: 30,
       proPricePerContributorMonth: "$4",
-      _benefitIds: "Polar licence-key benefit id of each plan (sandbox until launch): a key whose benefit_id is `pro` is Mainfast Pro; `free` is the optional free key (registered user, not Pro). tools/dev-sites/polar.mjs --apply prints the sandbox ids.",
+      _benefitIds: "Polar licence-key benefit id of each plan: a key whose benefit_id is `pro` is Mainfast Pro; `free` is the optional free key (registered user, not Pro).",
       benefitIds: {
-        free: "77fcbd42-f163-444e-9931-c98610f8063f",
-        pro: "9f2bb2ac-6b53-4c17-9cae-a2e2eccfad32"
+        free: "656e762a-ec6e-4e94-b7fd-f7ff879061ca",
+        pro: "ea9b4fcb-3659-404e-bb62-9bec84fb119a"
       }
     },
     polar: {
-      _comment: "Licence keys are checked with Polar's public customer-portal endpoint POST {api}/v1/customer-portal/license-keys/validate {key, organization_id}: no merchant secret. Until launch `api`, organizationId and the benefit ids are the Polar SANDBOX ones (29 Oct 2026); at launch put production Polar and its ids here. While organizationId is all zeros no key is sent anywhere. apiEnv / orgEnv override both, e.g. the sandbox.",
-      api: "https://sandbox-api.polar.sh",
-      sandboxApi: "https://sandbox-api.polar.sh",
-      organizationId: "f450cee3-327c-452e-a949-2557a22a7692",
+      _comment: "Licence keys are checked with Polar's public customer-portal endpoint POST {api}/v1/customer-portal/license-keys/validate {key, organization_id}: no merchant secret. These are the live Polar values. While organizationId is all zeros no key is sent anywhere. apiEnv / orgEnv override both, e.g. the sandbox.",
+      api: "https://api.polar.sh",
+      organizationId: "3a0d763f-8fac-4df0-898a-a59eb60d3506",
       apiEnv: "MAINFAST_POLAR_API",
       orgEnv: "MAINFAST_POLAR_ORG",
       timeoutMs: 3e3
@@ -7425,11 +7424,7 @@ var brand_default = {
       checkName: "Mainfast Intact",
       commentMarker: "<!-- mainfast-intact:sticky -->",
       actionRef: "mainfast/intact@v0",
-      branding: { icon: "git-merge", color: "blue" },
-      plugin: {
-        name: "mainfast",
-        description: "Mainfast Intact: check merge commits for dropped main changes before you push."
-      }
+      branding: { icon: "git-merge", color: "blue" }
     },
     migrations: {
       productName: "Mainfast Migrations",
@@ -7702,6 +7697,19 @@ async function resolveCommentAuthor(gh, override) {
 }
 
 // ../packages/shared/src/required-checks.ts
+function refMatches(pattern, ref) {
+  const escape = (t) => t.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  const source = pattern.split("**/").map((a) => a.split("**").map((b) => b.split("*").map(escape).join("[^/]*")).join(".*")).join("(?:.*/)?");
+  return new RegExp(`^${source}$`).test(ref);
+}
+function rulesetTargetsBranch(r, branch, defaultBranch) {
+  if (r.target && r.target !== "branch") return false;
+  const cond = r.conditions?.ref_name;
+  if (!cond) return true;
+  const ref = `refs/heads/${branch}`;
+  const hit = (p) => p === "~ALL" || (p === "~DEFAULT_BRANCH" ? defaultBranch === void 0 || defaultBranch === branch : refMatches(p, ref));
+  return (cond.include ?? []).some(hit) && !(cond.exclude ?? []).some(hit);
+}
 function resolveRequiredChecks(input) {
   const byContext = /* @__PURE__ */ new Map();
   const add = (context, src) => {
@@ -7789,7 +7797,8 @@ async function fetchRequiredSources(gh, owner, repo, branch, opts = {}) {
       rulesets.push(await soft(notes, `GET ${base}/rulesets/${r.id}`, () => gh.get(`${base}/rulesets/${r.id}?includes_parents=true`), r));
     }
   }
-  return { classic, branchRules, rulesets, headSha: typeof info?.commit?.sha === "string" ? info.commit.sha : void 0, notes };
+  const committedAt = info?.commit?.commit?.committer?.date;
+  return { classic, branchRules, rulesets, headSha: typeof info?.commit?.sha === "string" ? info.commit.sha : void 0, headCommittedAt: typeof committedAt === "string" ? committedAt : void 0, notes };
 }
 var STATE_ORDER = ["failure", "timed_out", "cancelled", "action_required", "stale", "pending", "skipped", "neutral", "success"];
 function checkRunState(status, conclusion) {
@@ -7889,16 +7898,124 @@ function triggers(on) {
   }
   return [];
 }
-function namePattern(name) {
-  const parts = name.split(/\$\{\{[^}]*\}\}/);
-  return { source: parts.map(escapeRe).join(".+"), display: name.replace(/\$\{\{[^}]*\}\}/g, "\u2026") };
+var eventsOf = (on) => typeof on === "string" ? [on] : Array.isArray(on) ? on.map(String) : on && typeof on === "object" ? Object.keys(on) : [];
+function isCallableOnly(on) {
+  const events = eventsOf(on);
+  return events.includes("workflow_call") && events.every((e) => e === "workflow_call" || e === "workflow_dispatch");
+}
+var EXPRESSION = /\$\{\{([^}]*)\}\}/g;
+var isScalar = (v) => typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+function matrixValues(expr, matrix) {
+  const key = /^\s*matrix\.([A-Za-z_][\w-]*)\s*$/.exec(expr)?.[1];
+  if (!key || !matrix || typeof matrix !== "object") return void 0;
+  const m = matrix;
+  if (m.include !== void 0 && !Array.isArray(m.include)) return void 0;
+  const include = m.include ?? [];
+  if (include.some((row) => !row || typeof row !== "object" || Array.isArray(row))) return void 0;
+  const fromInclude = include.map((row) => row[key]).filter((v) => v !== void 0);
+  const listed = m[key];
+  if (listed !== void 0 && !Array.isArray(listed)) return void 0;
+  const all = [...listed ?? [], ...fromInclude];
+  if (!all.length || !all.every(isScalar) || all.some((v) => /\$\{\{/.test(String(v)))) return void 0;
+  return [...new Set(all.map(String))];
+}
+function conditionOnPr(cond, events, repository) {
+  const text = cond.trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
+  const owner = repository.split("/")[0];
+  const atom = (raw) => {
+    const a = raw.trim();
+    const cmp = /^([\w.-]+)\s*(==|!=)\s*'([^']*)'$/.exec(a);
+    if (cmp) {
+      const [, left, op, right] = cmp;
+      let eq;
+      if (left === "github.event_name") eq = events.every((e) => e === right) ? true : events.includes(right) ? void 0 : false;
+      else if (left === "github.repository") eq = right.toLowerCase() === repository.toLowerCase();
+      else if (left === "github.repository_owner") eq = right.toLowerCase() === owner.toLowerCase();
+      else if (left.startsWith("github.event.inputs.") || left.startsWith("inputs.")) eq = right === "";
+      if (eq === void 0) return void 0;
+      return op === "==" ? eq : !eq;
+    }
+    if (/^startsWith\(\s*github\.ref\s*,\s*'refs\/tags\/[^']*'\s*\)$/.test(a)) return false;
+    return void 0;
+  };
+  let i = 0;
+  const space = () => {
+    while (/\s/.test(text[i] ?? "")) i++;
+  };
+  const or = () => {
+    let v = and();
+    for (space(); text.startsWith("||", i); space()) {
+      i += 2;
+      const r = and();
+      v = v === true || r === true ? true : v === false && r === false ? false : void 0;
+    }
+    return v;
+  };
+  const and = () => {
+    let v = not();
+    for (space(); text.startsWith("&&", i); space()) {
+      i += 2;
+      const r = not();
+      v = v === false || r === false ? false : v === true && r === true ? true : void 0;
+    }
+    return v;
+  };
+  const not = () => {
+    space();
+    if (text[i] === "!" && text[i + 1] !== "=") {
+      i++;
+      const v = not();
+      return v === void 0 ? void 0 : !v;
+    }
+    if (text[i] === "(") {
+      i++;
+      const v = or();
+      space();
+      if (text[i] === ")") i++;
+      return v;
+    }
+    const start = i;
+    let depth = 0;
+    let quoted = false;
+    for (; i < text.length; i++) {
+      const c = text[i];
+      if (c === "'") quoted = !quoted;
+      if (quoted) continue;
+      if (c === "(") depth++;
+      if (c === ")" && depth-- === 0) break;
+      if (depth === 0 && (text.startsWith("&&", i) || text.startsWith("||", i))) break;
+    }
+    return atom(text.slice(start, i));
+  };
+  const value = or();
+  space();
+  return i >= text.length ? value : void 0;
+}
+function namePattern(name, matrix) {
+  let source = "";
+  let literal = "";
+  let at = 0;
+  let unknown = false;
+  for (const m of name.matchAll(EXPRESSION)) {
+    const text = name.slice(at, m.index);
+    source += escapeRe(text);
+    literal += text;
+    const values = matrixValues(m[1], matrix);
+    if (!values) unknown = true;
+    source += values ? `(?:${values.map(escapeRe).join("|")})` : ".+";
+    at = m.index + m[0].length;
+  }
+  const rest = name.slice(at);
+  source += escapeRe(rest);
+  literal += rest;
+  return { source, display: name.replace(EXPRESSION, "\u2026"), opaque: unknown && !/[\p{L}\p{N}]/u.test(literal) };
 }
 function parseWorkflow(file) {
   let doc;
   try {
     doc = (0, import_yaml.parse)(file.text);
   } catch (e) {
-    return { path: file.path, name: file.path, prTriggers: [], jobs: [], error: e instanceof Error ? e.message : String(e) };
+    return { path: file.path, name: file.path, prTriggers: [], events: [], callableOnly: false, jobs: [], error: e instanceof Error ? e.message : String(e) };
   }
   const name = typeof doc?.name === "string" ? doc.name : file.path;
   const on = doc?.on ?? doc?.true;
@@ -7909,7 +8026,7 @@ function parseWorkflow(file) {
     const hasExpr = /\$\{\{/.test(rawName);
     const matrix = Boolean(j.strategy?.matrix);
     const reusable = typeof j.uses === "string";
-    const { source, display } = namePattern(rawName);
+    const { source, display, opaque } = namePattern(rawName, j.strategy?.matrix);
     let src = source;
     let disp = display;
     if (matrix && !hasExpr) {
@@ -7925,21 +8042,22 @@ function parseWorkflow(file) {
       workflowName: name,
       id,
       rawName,
-      pattern: new RegExp(`^${src}$`),
+      pattern: opaque ? /(?!)/ : new RegExp(`^${src}$`),
       display: disp,
       matrix,
       reusable,
+      opaque,
       if: j.if === void 0 ? void 0 : String(j.if),
       needs: list(j.needs) ?? []
     });
   }
-  return { path: file.path, name, prTriggers: triggers(on), jobs };
+  return { path: file.path, name, prTriggers: triggers(on), events: eventsOf(on), callableOnly: isCallableOnly(on), jobs };
 }
 function parseWorkflows(files) {
   return files.map(parseWorkflow);
 }
 function producersOf(context, workflows) {
-  return workflows.flatMap((w) => w.jobs.filter((j) => j.pattern.test(context)));
+  return workflows.filter((w) => !w.callableOnly).flatMap((w) => w.jobs.filter((j) => j.pattern.test(context)));
 }
 function filtersOf(w) {
   const out = [];
@@ -8012,11 +8130,13 @@ function similarity(a, b) {
 var prList = (ns) => ns.map((n) => `#${n}`).join(", ");
 var ALWAYS = /\b(always|failure|cancelled)\s*\(\s*\)/;
 var isMerged = (p) => (p.state ?? "merged") === "merged";
+var STALLED_MERGES_DAYS = 7;
 var runningAtMerge = (run2, mergedAt) => {
   if (!run2?.startedAt || !run2.completedAt || !mergedAt) return false;
   const merged = Date.parse(mergedAt);
   return Date.parse(run2.startedAt) <= merged && merged < Date.parse(run2.completedAt);
 };
+var reportedAfterMerge = (at, mergedAt) => Boolean(at && mergedAt && Date.parse(at) > Date.parse(mergedAt));
 function commitChecks(p) {
   return {
     sha: p.headSha,
@@ -8044,6 +8164,7 @@ function audit(s, opts = {}) {
   const required = set.required.filter((r) => !ignore.has(r.context));
   const requiredNames = new Set(required.map((r) => r.context));
   const workflows = parseWorkflows(s.workflows);
+  const opaqueJobs = workflows.filter((w) => !w.callableOnly).flatMap((w) => w.jobs.filter((j) => j.opaque));
   const findings = [];
   const pulls = s.pulls;
   const merged = pulls.filter(isMerged);
@@ -8057,6 +8178,8 @@ function audit(s, opts = {}) {
   for (const w of workflows)
     if (w.error) findings.push({ code: "workflow-unparsable", severity: "warning", message: `\`${w.path}\` is not valid YAML: ${w.error}` });
   for (const r of set.notEnforced) {
+    const ruleset = s.rulesets.find((x) => x.id === r.rulesetId);
+    if (ruleset && !rulesetTargetsBranch(ruleset, s.branch, s.defaultBranch)) continue;
     const ctxs = r.contexts.filter((c) => !ignore.has(c));
     if (ctxs.length)
       findings.push({
@@ -8100,6 +8223,7 @@ function audit(s, opts = {}) {
       });
   }
   const tallies = [];
+  const lateFailures = [];
   for (const r of required) {
     const producers = producersOf(r.context, workflows);
     const by = { passed: [], failed: [], skipped: [], neutral: [], pending: [], stale: [], missing: [] };
@@ -8107,13 +8231,23 @@ function audit(s, opts = {}) {
     const appMismatch = [];
     const pins = pinnedApps(r.sources);
     const missingAt = /* @__PURE__ */ new Set();
+    const failedAfterMerge = [];
     for (const { p, c } of obs) {
       const res = classifyRequired(r.context, c, r.sources);
       by[res.outcome].push(p.number);
-      if (isMerged(p)) mergedBy[runningAtMerge(res.run, p.mergedAt) ? "pending" : res.outcome].push(p.number);
+      if (isMerged(p)) {
+        const status = latestStatuses(c).find((x) => x.context === r.context);
+        const failing = [
+          ...res.run && outcomeOf(checkRunState(res.run.status, res.run.conclusion)) === "failed" ? [res.run.startedAt] : [],
+          ...status && outcomeOf(commitStatusState(status.state)) === "failed" ? [status.updatedAt] : []
+        ];
+        if (failing.length && failing.every((at) => reportedAfterMerge(at, p.mergedAt))) failedAfterMerge.push(p.number);
+        else mergedBy[runningAtMerge(res.run, p.mergedAt) ? "pending" : res.outcome].push(p.number);
+      }
       if (res.outcome === "missing") missingAt.add(p.number);
       if (res.run && !res.appSatisfied) appMismatch.push({ pr: p.number, app: `${res.run.appSlug ?? "?"} (${res.run.appId ?? "?"})` });
     }
+    if (failedAfterMerge.length) lateFailures.push(`\`${r.context}\` failed after the merge on ${prList(failedAfterMerge.slice(0, 10))} (a re-run or a late report), so it is not counted as merged over a failure`);
     tallies.push({
       context: r.context,
       sources: r.sources.map(sourceLabel),
@@ -8159,29 +8293,43 @@ function audit(s, opts = {}) {
             code: "never-ran",
             severity: "error",
             context: r.context,
-            message: `\`${r.context}\` (required by ${r.sources.map(sourceLabel).join(", ")}) did not report on any of the ${pulls.length} sampled PRs. ${producers.length ? `It is produced by ${producers.map((j) => `\`${j.workflow}\` job \`${j.id}\``).join(", ")}, so check that workflow's triggers.` : "No job in .github/workflows produces this name."}`,
+            message: `\`${r.context}\` (required by ${r.sources.map(sourceLabel).join(", ")}) did not report on any of the ${pulls.length} sampled PRs. ${producers.length ? `It is produced by ${producers.map((j) => `\`${j.workflow}\` job \`${j.id}\``).join(", ")}, so check that workflow's triggers.` : `No job in .github/workflows produces this name${opaqueJobs.length ? `, though ${opaqueJobs.map((j) => `\`${j.workflow}\` job \`${j.id}\``).slice(0, 3).join(", ")} take their name from an expression and may produce it` : ""}.`}`,
             evidence: by.missing.slice(0, 10)
           });
         }
       }
     } else if (pulls.length) {
-      let streak = 0;
-      for (const { p } of obs) {
-        if (!missingAt.has(p.number)) break;
-        streak++;
-      }
-      if (streak >= stoppedAfter && stoppedAfter > 0) {
-        const recent = obs.slice(0, streak);
-        const older = obs.slice(streak);
+      const missingStreak = (list2) => {
+        let n = 0;
+        for (const x of list2) {
+          if (!missingAt.has(x.p.number)) break;
+          n++;
+        }
+        return n;
+      };
+      const mergedObs = obs.filter((x) => isMerged(x.p));
+      const streak = missingStreak(mergedObs);
+      const firstMerged = obs.findIndex((x) => isMerged(x.p));
+      const openFirst = firstMerged < 0 ? obs : obs.slice(0, firstMerged);
+      const lastMerge = Date.parse(mergedObs[0]?.p.mergedAt ?? "");
+      const weekOld = (at) => Date.parse(s.collectedAt) - at >= STALLED_MERGES_DAYS * 864e5;
+      const headDate = Date.parse(s.headCommittedAt ?? "");
+      const stalled = !Number.isNaN(lastMerge) && weekOld(lastMerge) && (Number.isNaN(headDate) || weekOld(headDate));
+      const blockedOpen = stalled && streak < stoppedAfter ? missingStreak(openFirst) : 0;
+      if (stoppedAfter > 0 && (streak >= stoppedAfter || blockedOpen >= stoppedAfter)) {
+        const recent = streak >= stoppedAfter ? mergedObs.slice(0, streak) : openFirst.slice(0, blockedOpen);
+        const older = streak >= stoppedAfter ? mergedObs.slice(streak) : mergedObs;
+        const reportedBefore = older.filter((x) => !missingAt.has(x.p.number)).length;
         const appeared = [...seenNames.keys()].filter((n) => !requiredNames.has(n) && recent.every((x) => x.names.has(n)) && !older.some((x) => x.names.has(n)));
-        const best = appeared.map((n) => ({ n, s: similarity(r.context, n) })).sort((a, b) => b.s - a.s)[0];
+        const best = appeared.map((n) => ({ n, s: similarity(r.context, n) })).filter((x) => x.s >= 0.5).sort((a, b) => b.s - a.s)[0];
+        const onlyOpen = streak < stoppedAfter;
         if (!best && onlyPathFiltered(producers, workflows)) {
           if (mergedBy.missing.length) findings.push(mergedWithout(r.context, mergedBy.missing));
         } else findings.push({
           code: best ? "renamed" : "stopped-reporting",
-          severity: "error",
+          severity: onlyOpen ? "warning" : "error",
           context: r.context,
-          message: `\`${r.context}\` stopped reporting: missing on the ${streak} newest sampled PRs (${prList(recent.map((x) => x.p.number))}) after reporting on ${seen} older ones.${best ? ` \`${best.n}\` first appears on exactly those PRs and is not required \u2014 the job was probably renamed and fell out of the required list.` : ""}`,
+          message: `\`${r.context}\` stopped reporting: missing on the ${recent.length} newest ${onlyOpen ? `open PRs, with no merge in ${STALLED_MERGES_DAYS} days or more` : "merged PRs"} (${prList(recent.map((x) => x.p.number))}) after reporting on ${reportedBefore} older ones.${best ? ` \`${best.n}\` first appears on exactly those PRs and is not required \u2014 the job was probably renamed and fell out of the required list.` : ""}`,
           evidence: recent.map((x) => x.p.number),
           hint: best ? `Replace \`${r.context}\` with \`${best.n}\` in ${r.sources.map(sourceLabel).join(" and ")}.` : void 0
         });
@@ -8228,7 +8376,7 @@ function audit(s, opts = {}) {
         context: r.context,
         message: `\`${r.context}\` is pinned to app ${pins.join("/")}, but the runs come from ${[...new Set(appMismatch.map((x) => x.app))].join(", ")} (${prList(appMismatch.map((x) => x.pr).slice(0, 10))}); a check from another app does not satisfy the rule`
       });
-    findings.push(...staticFindings(r.context, producers, workflows, s.branch, requiredNames));
+    findings.push(...staticFindings(r.context, producers, workflows, s.branch, requiredNames, s.repository, seen, pulls.length, opaqueJobs));
   }
   for (const rule of s.branchRules) {
     if (rule.type !== "workflows") continue;
@@ -8251,13 +8399,24 @@ function audit(s, opts = {}) {
     findings,
     sampledPulls: merged.map((p) => p.number),
     sampledOpen: pulls.filter((p) => !isMerged(p)).map((p) => p.number),
-    notes: [...s.notes ?? [], ...pulls.length ? [] : ["no merged or open PRs into this branch were found; only static checks ran"]]
+    notes: [...s.notes ?? [], ...lateFailures, ...pulls.length ? [] : ["no merged or open PRs into this branch were found; only static checks ran"]]
   };
 }
-function staticFindings(context, producers, workflows, branch, requiredSet2) {
+function staticFindings(context, producers, workflows, branch, requiredSet2, repository, seen, sampled, opaqueJobs) {
   const out = [];
   const wfByPath = new Map(workflows.map((w) => [w.path, w]));
-  if (producers.length > 1 && new Set(producers.map((j) => j.workflow)).size > 1)
+  const wfOf = (j) => wfByPath.get(j.workflow);
+  const queueOnly = (w) => w.events.length > 0 && w.events.every((e) => e === "merge_group");
+  const inQueue = (w) => w.events.includes("merge_group");
+  const disjoint = (a, b) => queueOnly(a) && !inQueue(b) || queueOnly(b) && !inQueue(a);
+  const clashing = producers.some((a, i) => producers.slice(i + 1).some((b) => a.workflow !== b.workflow && !disjoint(wfOf(a), wfOf(b))));
+  const reachesPrs = (w) => w.prTriggers.filter((t) => t.event !== "merge_group" && branchAllowed(t, branch));
+  const onPrs = (j) => reachesPrs(wfOf(j)).length > 0;
+  const onEveryPr = (j) => reachesPrs(wfOf(j)).some((t) => !t.paths && !t.pathsIgnore);
+  const unfilteredProducer = producers.some(onEveryPr);
+  const opaqueAlternative = opaqueJobs.some(onEveryPr) && sampled > 0 && seen / sampled >= 0.5;
+  const coveredByFilters = new Set(producers.filter(onPrs).map((j) => j.workflow)).size > 1 && sampled >= 5 && seen === sampled;
+  if (clashing)
     out.push({
       code: "ambiguous-name",
       severity: "warning",
@@ -8269,6 +8428,7 @@ function staticFindings(context, producers, workflows, branch, requiredSet2) {
     const wf = wfByPath.get(job.workflow);
     const where = `\`${job.workflow}\` job \`${job.id}\``;
     if (!wf.prTriggers.length) {
+      if (producers.some(onPrs)) continue;
       out.push({
         code: "not-on-pull-request",
         severity: "error",
@@ -8280,7 +8440,7 @@ function staticFindings(context, producers, workflows, branch, requiredSet2) {
     }
     const filters = filtersOf(wf);
     const pathFiltered = wf.prTriggers.some((t) => t.paths || t.pathsIgnore);
-    if (pathFiltered)
+    if (pathFiltered && !unfilteredProducer && !opaqueAlternative && !coveredByFilters)
       out.push({
         code: "path-filtered",
         severity: "error",
@@ -8295,7 +8455,7 @@ function staticFindings(context, producers, workflows, branch, requiredSet2) {
         message: `\`${context}\` is required on \`${branch}\`, but ${where} does not run for PRs into \`${branch}\` (${filters.filter((f) => f.includes("branches")).map((f) => `\`${f}\``).join("; ")})`
       });
     const cond = job.if;
-    if (cond && !ALWAYS.test(cond))
+    if (cond && !ALWAYS.test(cond) && conditionOnPr(cond, wf.prTriggers.map((t) => t.event), repository) !== true)
       out.push({
         code: "conditional-job",
         severity: "warning",
@@ -8305,7 +8465,7 @@ function staticFindings(context, producers, workflows, branch, requiredSet2) {
       });
     if (job.needs.length && !(cond && ALWAYS.test(cond))) {
       const needed = wf.jobs.filter((j) => job.needs.includes(j.id));
-      const unguarded = needed.filter((j) => !producesRequired(j, requiredSet2));
+      const unguarded = needed.filter((j) => !j.opaque && !producesRequired(j, requiredSet2));
       if (unguarded.length)
         out.push({
           code: "skips-when-needs-fail",
@@ -8353,7 +8513,8 @@ async function fetchWorkflows(gh, owner, repo, ref, notes) {
 async function collect(o) {
   const { gh, owner, repo } = o;
   const base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
-  const branch = o.branch ?? (await gh.get(base)).default_branch;
+  const defaultBranch = o.defaultBranch ?? (o.branch ? void 0 : (await gh.get(base)).default_branch);
+  const branch = o.branch ?? defaultBranch;
   const b = encPath(branch);
   const req = await fetchRequiredSources(gh, owner, repo, branch);
   const notes = [...req.notes];
@@ -8384,6 +8545,7 @@ async function collect(o) {
   return {
     repository: `${owner}/${repo}`,
     branch,
+    defaultBranch,
     collectedAt: (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString(),
     classic: req.classic,
     branchRules: req.branchRules,
@@ -8391,6 +8553,7 @@ async function collect(o) {
     pulls,
     workflows,
     headSha: req.headSha,
+    headCommittedAt: req.headCommittedAt,
     notes: [...new Set(notes)]
   };
 }
@@ -8502,7 +8665,7 @@ async function resolveConfig(text, fetcher, source = SUITE.configFile) {
 }
 
 // src/config.ts
-var KNOWN_KEYS = ["branch", "pulls", "openPulls", "ignore", "stoppedAfter", "failOn", "issueOn"];
+var KNOWN_KEYS = ["enabled", "branch", "pulls", "openPulls", "ignore", "stoppedAfter", "failOn", "issueOn"];
 var DEFAULT_CONFIG = { pulls: 20, openPulls: 10, ignore: [], stoppedAfter: 2, failOn: "error", issueOn: "error" };
 function level(key, v) {
   const s = String(v);
@@ -9085,7 +9248,7 @@ async function run() {
   const issueOn = level("issue-on", getInput("issue-on") || cfg.issueOn);
   const pulls = count("pulls", getInput("pulls", String(cfg.pulls)), 1, 100);
   const openPulls = count("open-pulls", getInput("open-pulls", String(cfg.openPulls)), 0, 100);
-  const snap = await collect({ gh, owner, repo, branch, pulls, openPulls });
+  const snap = await collect({ gh, owner, repo, branch, defaultBranch, pulls, openPulls });
   const report = audit(snap, { ignore: cfg.ignore, stoppedAfter: cfg.stoppedAfter });
   const md = toMarkdown(report, { runUrl: ctx.runUrl });
   appendSummary(md);

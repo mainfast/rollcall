@@ -31,12 +31,12 @@ and carries its fix.
 |---|---|---|---|
 | `never-ran` | error | Required, but no sampled PR reported it (and no similar name exists). Says whether any workflow job produces the name. | Remove the stale requirement or restore the job; merges need a bypass until then. |
 | `renamed` | error | The required name stopped reporting (or never did) and a similar, non-required name took its place. | Put the new job name in the required list and drop the old one. |
-| `stopped-reporting` | error | Missing on the newest N sampled PRs in a row after reporting on older ones, no rename candidate, and no path filter that explains it. | Find the commit that removed or renamed the job; restore it or update the list. |
+| `stopped-reporting` | error | Missing on the newest N merged PRs in a row after reporting on older ones, no rename candidate, and no path filter that explains it. Open PRs count only when nothing has merged for 7 days, since a missing check may be what blocks them, and then as a warning. | Find the commit that removed or renamed the job; restore it or update the list. |
 | `matrix-name-mismatch` | error | Required `test`, the job reports `test (…)`. | Require each leg by full name, or add an `if: always()` gate job with the required name. |
 | `skipped-as-success` | error | Concluded `skipped` on sampled PRs (merged or open), which GitHub counts as passing. | Make it a gate job with `if: always()` that fails unless its dependencies succeeded. |
 | `path-filtered` | error | The producing workflow has `paths` / `paths-ignore` on its PR trigger. | Drop the filter and skip inside the job, or require a gate job that always runs. |
 | `branch-filtered` | error | The producing workflow does not run for PRs into the audited branch. | Add the branch to the workflow's `pull_request.branches` (or remove the filter). |
-| `not-on-pull-request` | error | The producing workflow has no `pull_request` / `pull_request_target` / `merge_group` trigger. | Add `pull_request` (and `merge_group` with a merge queue). |
+| `not-on-pull-request` | error | The producing workflow has no `pull_request` / `pull_request_target` / `merge_group` trigger. Reusable workflows that only run through `workflow_call` are exempt: the trigger lives in the caller. | Add `pull_request` (and `merge_group` with a merge queue). |
 | `app-mismatch` | error | Requirement pinned to app X, the runs come from app Y. | Pin it to the app that reports it (GitHub Actions is 15368), or to any source. |
 | `required-workflow-missing` | error | A ruleset `workflows` rule points at a file that is gone. | Point the rule at an existing file, or remove it. |
 | `conditional-job` | warning | The producing job has an `if:` without `always()`; a false condition reports skipped. | Move the condition into the steps, or make sure every skip is intended. |
@@ -46,7 +46,7 @@ and carries its fix.
 | `merged-with-failure` | warning | Merged while the check had failed. | Review the bypass; fix a flaky check instead of merging over it. |
 | `merged-while-pending` | warning | Merged while the check was still running, even if it finished later, or it never finished (`stale`). A check still queued at merge time is only caught if it hasn't finished by the audit. | Wait for required checks; limit bypass, or use the merge queue. |
 | `protection-drift` | warning | Context, explicit app pins that disagree, or "up to date" policy differs between classic protection and rulesets. | Keep one source of truth (move everything into the ruleset). |
-| `ruleset-not-enforced` | warning | A ruleset with required checks is in `evaluate` or `disabled`. | Switch it to Active once its checks report reliably, or delete it. |
+| `ruleset-not-enforced` | warning | A ruleset with required checks that targets the audited branch is in `evaluate` or `disabled`. | Switch it to Active once its checks report reliably, or delete it. |
 | `ambiguous-name` | warning | Two workflows produce the same check name. | Give each job a unique name. |
 | `workflow-unparsable` | warning | A workflow file is not valid YAML. | Fix the YAML; GitHub does not run it either. |
 
@@ -209,3 +209,7 @@ so no test can reach the network.
 - Reusable-workflow producers are matched as `caller / …`; the called workflow
   is not opened.
 - Up to 1000 open issues are scanned for the tracking issue.
+
+## Report a problem
+
+Found a bug or a false positive? [Open an issue](https://github.com/mainfast/mainfast/issues) in the main Mainfast repository. Anyone can, free, with no key. Issues are public, so leave out private code and secrets.

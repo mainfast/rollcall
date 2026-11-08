@@ -1,4 +1,4 @@
-# Copy to .github/workflows/rollcall.yml.
+# Copy to .github/workflows/mainfast-rollcall.yml.
 # No checkout step: Rollcall reads .mainfast.yml (default branch) and .github/workflows (audited
 # branch) through the API, so a manual run from any branch audits exactly what the schedule does.
 name: Required-check audit

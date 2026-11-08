@@ -1,12 +1,14 @@
 # Mainfast Rollcall
 
-Required-check integrity audit. Reads the required status checks from classic
-branch protection **and** rulesets, then checks them against what recently
-merged **and** open PRs actually reported, and against the workflow files that
-are supposed to produce them. Posts a check run and keeps **one tracking issue**
-open while something is wrong (closed automatically once it is fixed).
+Finds required checks that do not actually protect your branch. Rollcall reads
+the required status checks from classic branch protection **and** rulesets, then
+compares them with what recently merged **and** open PRs actually reported, and
+with the workflow files that are supposed to produce them. It posts a check run
+and keeps **one tracking issue** open while something is wrong (closed
+automatically once it is fixed).
 
-Licence: MIT; free for public repos and private repos with up to 5 active contributors ([Free and Pro](https://github.com/mainfast/mainfast/blob/main/README.md#free-and-pro)).
+Part of the [Mainfast suite](https://github.com/mainfast/mainfast/blob/main/README.md). MIT-licensed and free for public repositories and for
+private ones with up to 5 active contributors; see [Free and Pro](https://github.com/mainfast/mainfast/blob/main/README.md#free-and-pro).
 
 ## Why
 
@@ -58,7 +60,10 @@ left out and mentioned in the notes.
 
 ## GitHub Action
 
+Add this as `.github/workflows/mainfast-rollcall.yml`:
+
 ```yaml
+name: Required-check audit
 on:
   schedule: [{ cron: "17 6 * * 1" }]   # weekly; also catches ruleset edits (see below)
   workflow_dispatch:
@@ -84,7 +89,7 @@ No `actions/checkout` step is needed: `.mainfast.yml` is read through the API
 from the **default branch** (with `extends:` applied) and `.github/workflows/*`
 from the **audited branch**, never from a checkout, so a `workflow_dispatch` run
 on a feature branch audits the same thing as the scheduled one. A push to any
-other branch than the audited one is a no-op. Full example:
+branch other than the audited one does nothing. Full example:
 [`examples/rollcall.yml`](examples/rollcall.yml) (if you add a checkout step
 elsewhere, pin it: `actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0`).
 
@@ -92,9 +97,8 @@ elsewhere, pin it: `actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # 
 `.mainfast.yml`, and on `branch_protection_rule` (classic protection created,
 edited or deleted; it runs on the default branch and only if the workflow file
 is on the default branch). **Ruleset changes trigger no workflow**: GitHub has a
-`repository_ruleset` webhook for apps, but no workflow event for it (checked
-against docs.github.com "Events that trigger workflows", 28 Oct 2026). After
-editing a ruleset, run the workflow by hand (`gh workflow run rollcall.yml`) or
+`repository_ruleset` webhook for apps, but no workflow event for it. After
+editing a ruleset, run the workflow by hand (`gh workflow run mainfast-rollcall.yml`) or
 wait for the weekly run.
 
 **What it writes.**
@@ -109,7 +113,7 @@ wait for the weekly run.
   its marker **and** its author: only an issue opened by the token's own identity
   (`comment-author` input, else `GET /user`, else `github-actions[bot]`) is ever
   edited or closed, so a marker pasted into someone else's issue is ignored. Set
-  `comment-author` when the token is an app token (`my-app[bot]`).
+  `comment-author` when the token is a GitHub App token (`my-app[bot]`).
 - The job fails at the `fail-on` level (default `error`).
 
 ## Permissions
@@ -151,22 +155,21 @@ does not read them.
 | Tracking issue | `GET /repos/{o}/{r}/issues?state=open`, `POST /repos/{o}/{r}/issues`, `PATCH /repos/{o}/{r}/issues/{n}` |
 | Comment author | `GET /user` (403 for `GITHUB_TOKEN`: falls back to `github-actions[bot]`) |
 
-Required-check resolution (classic + active rulesets + evaluate-mode rulesets +
-app pins) and the reading of a check run or status as passed / failed / pending
-/ skipped / neutral / stale / missing for one commit live in
-`@mainfast/shared/required-checks`; Mainfast Evidence uses the same code for a
-single PR head.
+Mainfast Evidence uses the same code (`@mainfast/shared/required-checks`) to
+work out the required checks (classic, active rulesets, evaluate-mode rulesets,
+app pins) and to read each check run or status on a single PR head as passed,
+failed, pending, skipped, neutral, stale or missing.
 
 ## Untrusted text
 
 Check names (set by other apps), workflow paths and job names, `if:`
 expressions, ruleset names, branch and repository names and GitHub error text
-are escaped with the suite's helpers (`@mainfast/shared/markdown`) in the check
-run, the job summary and the issue: no HTML, no links, no `@` mentions (a
-zero-width space follows the `@`), no table breakouts, no forged marker.
+are escaped (`@mainfast/shared/markdown`) in the check run, the job summary and
+the issue: no HTML, no links, no `@` mentions (a zero-width space follows the
+`@`), nothing that breaks out of a table, no fake marker.
 Annotations and titles are plain text.
 
-## Config
+## Configuration
 
 `.mainfast.yml`, section `rollcall:` ([reference](https://github.com/mainfast/mainfast/blob/main/docs/config.md#rollcall),
 [example](https://github.com/mainfast/mainfast/blob/main/rollcall/.mainfast.example.yml)): `branch`, `pulls`, `openPulls`, `ignore`,
@@ -174,22 +177,28 @@ Annotations and titles are plain text.
 `open-pulls`, `fail-on`, `issue-on`; `config:` reads a file from the workspace
 instead of the default branch.
 
-## CLI
+## Run it locally
 
 ```sh
-GITHUB_TOKEN=... npx mainfast-rollcall audit --github-repo owner/name --pulls 30 --open-pulls 10 --format md
-npx mainfast-rollcall audit --github-repo owner/name --workflows-from . --save-snapshot snap.json
-npx mainfast-rollcall audit --snapshot snap.json --format json        # offline
+npx mainfast audit rollcall
 ```
 
-Exit 1 on an error-level finding. The CLI only reads; it posts no check run and
-no issue.
+Needs a GitHub origin remote, and `GITHUB_TOKEN` or `GH_TOKEN` for a private repository. Exit 1
+on an error-level finding. It only reads; it posts no check run and no issue.
 
 ## Development
 
 ```sh
 npm run all        # at the suite root: brand check, typecheck, every test, build
 npm test -w @mainfast/rollcall
+```
+
+The package's own CLI, from your build (run in `rollcall/`):
+
+```sh
+GITHUB_TOKEN=... node dist/cli.cjs audit --github-repo owner/name --pulls 30 --open-pulls 10 --format md
+node dist/cli.cjs audit --github-repo owner/name --workflows-from . --save-snapshot snap.json
+node dist/cli.cjs audit --snapshot snap.json --format json        # offline
 ```
 
 `test/fixtures/acme-web.routes.json` is a fake repository's API responses
@@ -201,8 +210,9 @@ so no test can reach the network.
 ## Limits
 
 - Check runs from the PR's test merge commit are not read; only the head SHA.
-- Matrix names are matched by pattern (`name (…)`); `${{ }}` expressions in a
-  job name become wildcards.
+- Matrix names are matched by pattern (`name (…)`). `${{ matrix.x }}` in a job
+  name expands to the values the matrix lists; other `${{ }}` expressions become
+  wildcards.
 - Rulesets that target by repository property or that only apply to some
   branches are taken as returned by `rules/branches/{branch}`, which already
   resolves them.
@@ -212,4 +222,4 @@ so no test can reach the network.
 
 ## Report a problem
 
-Found a bug or a false positive? [Open an issue](https://github.com/mainfast/mainfast/issues) in the main Mainfast repository. Anyone can, free, with no key. Issues are public, so leave out private code and secrets.
+Found a bug or a false positive? [Open an issue](https://github.com/mainfast/mainfast/issues) in the main Mainfast repository. You don't need a key or a paid plan. Issues are public, so leave out private code and secrets.

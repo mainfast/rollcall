@@ -1,12 +1,12 @@
 name: "Mainfast Rollcall"
-description: "Audits required status checks (branch protection and rulesets) against what recent merged and open PRs actually reported — never-ran, skipped-as-success, renamed, path-filtered, merged while pending, drift — and keeps one tracking issue open while something is wrong."
+description: "Finds required status checks that do not protect anything (never ran, skipped but counted as passing, renamed, path-filtered, merged while pending, drift) by comparing branch protection and rulesets with what recent PRs reported. Keeps one tracking issue open while something is wrong."
 author: "Mainfast authors"
 branding:
   icon: "check-square"
   color: "blue"
 inputs:
   token:
-    description: "Token for the audit. GITHUB_TOKEN works with permissions contents: read, pull-requests: read, statuses: read, checks: write, issues: write. Classic branch protection is read from \"Get a branch\" (read access); the admin-only protection endpoint is only a fallback, and its 403 becomes a note."
+    description: "Token for the audit. GITHUB_TOKEN works with permissions contents: read, pull-requests: read, statuses: read, checks: write, issues: write. Classic branch protection is read from the \"Get a branch\" API (read access); the admin-only protection endpoint is only a fallback, and if it is refused the report says so in a note."
     default: ${{ github.token }}
   repository:
     description: owner/name to audit. Defaults to the current repository.
@@ -33,13 +33,13 @@ inputs:
     description: "error, warning or never: lowest finding level that opens the tracking issue. Defaults to rollcall.issueOn (error)."
     default: ""
   comment-author:
-    description: "Login the token posts as (e.g. my-app[bot] for an app token). Only an issue that carries the marker AND was opened by this login is ever edited or closed. Default: GET /user, else github-actions[bot]."
+    description: "Login the token posts as (e.g. my-app[bot] for a GitHub App token). Only an issue that carries the Mainfast marker and was opened by this login is ever edited or closed. Default: the token's own user (GET /user), else github-actions[bot]."
     default: ""
   fail-on:
     description: "error, warning or never: lowest finding level that fails the job and the check run. Defaults to rollcall.failOn (error)."
     default: ""
   license:
-    description: "Mainfast licence key (Pro, or the optional free key): pass your MAINFAST_LICENSE secret. Optional and never needed for public repositories or private ones with up to 5 active contributors; no feature needs it. Checked once per run with Polar (only the key and the organisation id are sent; offline counts as valid). Without a Pro key a larger private repository gets one notice in the job summary; the result is never affected."
+    description: "Your Mainfast license key (Pro, or the optional free key), from the MAINFAST_LICENSE secret. Optional: no feature needs it, and public repositories and private ones with up to 5 active contributors never need it. Checked once per run with Polar (only the key and the organization id are sent; if Polar cannot be reached, the key counts as valid). Without a Pro key, a larger private repository gets one notice in the job summary; the result never changes."
     default: ""
 outputs:
   ok:
